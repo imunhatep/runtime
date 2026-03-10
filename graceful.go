@@ -1,6 +1,10 @@
 package runtime
 
-import "context"
+import (
+	"context"
+
+	"github.com/rs/zerolog"
+)
 
 var (
 	defaultEnv *Environment
@@ -62,4 +66,9 @@ func Wait() error {
 // channel is closed.
 func Go(f func(ctx context.Context) error) {
 	defaultEnv.Go(f)
+}
+
+// Logger sets zerolog Logger instance to default Environment
+func Logger(logger zerolog.Logger) {
+	defaultEnv.logger = logger
 }

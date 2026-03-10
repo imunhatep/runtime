@@ -2,10 +2,12 @@ package runtime
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 // Environment implements context-based goroutine management.
@@ -19,6 +21,18 @@ type Environment struct {
 	stopCh   chan struct{}
 	canceled bool
 	err      error
+	logger   zerolog.Logger
+}
+
+// EnvironmentOption configures Environment behavior.
+type EnvironmentOption func(*Environment)
+
+// WithLogger sets a custom logger for the Environment.
+// If not provided, the global zerolog logger will be used.
+func WithLogger(logger zerolog.Logger) EnvironmentOption {
+	return func(e *Environment) {
+		e.logger = logger
+	}
 }
 
 // NewEnvironment creates a new Environment.
@@ -26,13 +40,20 @@ type Environment struct {
 // This does *not* install signal handlers for SIGINT/SIGTERM
 // for new environments.  Only the global environment will be
 // canceled on these signals.
-func NewEnvironment(ctx context.Context) *Environment {
+func NewEnvironment(ctx context.Context, options ...EnvironmentOption) *Environment {
 	ctx, cancel := context.WithCancel(ctx)
 	e := &Environment{
 		ctx:    ctx,
 		cancel: cancel,
 		stopCh: make(chan struct{}),
+		logger: log.Logger, // default to global logger
 	}
+
+	// Apply options
+	for _, opt := range options {
+		opt(e)
+	}
+
 	return e
 }
 
@@ -94,7 +115,7 @@ func (e *Environment) Wait() error {
 	<-e.stopCh
 
 	time.Sleep(time.Second)
-	log.Debug().Msg("[runtime] waiting for all goroutines to complete")
+	e.logger.Debug().Msg("[runtime] waiting for all goroutines to complete")
 
 	e.wg.Wait()
 	e.cancel() // in case no one calls Cancel
