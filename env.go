@@ -16,12 +16,13 @@ type Environment struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
-	mu       sync.RWMutex
-	stopped  bool
-	stopCh   chan struct{}
-	canceled bool
-	err      error
-	logger   zerolog.Logger
+	mu        sync.RWMutex
+	stopped   bool
+	stopCh    chan struct{}
+	canceled  bool
+	err       error
+	logger    zerolog.Logger
+	hasLogger bool // tracks if a custom logger was provided
 }
 
 // EnvironmentOption configures Environment behavior.
@@ -32,6 +33,7 @@ type EnvironmentOption func(*Environment)
 func WithLogger(logger zerolog.Logger) EnvironmentOption {
 	return func(e *Environment) {
 		e.logger = logger
+		e.hasLogger = true
 	}
 }
 
@@ -115,7 +117,9 @@ func (e *Environment) Wait() error {
 	<-e.stopCh
 
 	time.Sleep(time.Second)
-	e.logger.Debug().Msg("[runtime] waiting for all goroutines to complete")
+	if e.hasLogger {
+		e.logger.Debug().Msg("[runtime] waiting for all goroutines to complete")
+	}
 
 	e.wg.Wait()
 	e.cancel() // in case no one calls Cancel

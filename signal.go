@@ -2,12 +2,13 @@ package runtime
 
 import (
 	"errors"
-	"github.com/rs/zerolog/log"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 var stopSignals = []os.Signal{syscall.SIGINT, syscall.SIGTERM}
@@ -33,18 +34,21 @@ func handleSignal(env *Environment) {
 
 	go func() {
 		s := <-ch
-		delay := getDelaySecondsFromEnv()
-		log.Warn().
-			Str("signal", s.String()).
-			Int("delay", delay).
-			Msg("[runtime] got signal")
+		delay := getDelaySecondsFromEnv(env)
+
+		if env.hasLogger {
+			log.Warn().
+				Str("signal", s.String()).
+				Int("delay", delay).
+				Msg("[runtime] got signal")
+		}
 
 		time.Sleep(time.Duration(delay) * time.Second)
 		env.Cancel(errSignaled)
 	}()
 }
 
-func getDelaySecondsFromEnv() int {
+func getDelaySecondsFromEnv(env *Environment) int {
 	delayStr := os.Getenv(cancellationDelaySecondsEnv)
 	if len(delayStr) == 0 {
 		return defaultCancellationDelaySeconds
@@ -52,19 +56,24 @@ func getDelaySecondsFromEnv() int {
 
 	delay, err := strconv.Atoi(delayStr)
 	if err != nil {
-		log.Warn().Err(err).
-			Str("env", delayStr).
-			Int("delay", defaultCancellationDelaySeconds).
-			Msg("[runtime] set default cancellation delay seconds")
+		if env.hasLogger {
+			log.Warn().Err(err).
+				Str("env", delayStr).
+				Int("delay", defaultCancellationDelaySeconds).
+				Msg("[runtime] set default cancellation delay seconds")
+		}
 
 		return defaultCancellationDelaySeconds
 	}
 
 	if delay < 0 {
-		log.Warn().Err(err).
-			Str("env", delayStr).
-			Int("delay", 0).
-			Msg("[runtime] round up negative cancellation delay seconds to 0s")
+		if env.hasLogger {
+			log.Warn().Err(err).
+				Str("env", delayStr).
+				Int("delay", 0).
+				Msg("[runtime] round up negative cancellation delay seconds to 0s")
+		}
+
 		return 0
 	}
 

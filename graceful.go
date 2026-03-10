@@ -71,4 +71,5 @@ func Go(f func(ctx context.Context) error) {
 // Logger sets zerolog Logger instance to default Environment
 func Logger(logger zerolog.Logger) {
 	defaultEnv.logger = logger
+	defaultEnv.hasLogger = true
 }
